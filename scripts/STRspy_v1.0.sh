@@ -40,7 +40,7 @@ tools_config="${10}" ## tools config
 
 print_USAGE()
 {
-echo -e "USAGE: bash ./STRspy_v1.0.sh <input_reads_dir(fastq/bam dir)> <is_input_bam(yes/no)> <ReadType(ont/pb)> <motif_fasta_dir> <motif_bed_dir> <genome_fa> <region_bed> <filter_threshold> <output_dir> <tools_config>\n"
+echo -e "USAGE: bash ./STRspy_v1.0.sh <input_reads_dir(fastq/bam dir)> <is_input_bam(yes/no)> <ReadType(ont/pb/illumina)> <motif_fasta_dir> <motif_bed_dir> <genome_fa> <region_bed> <filter_threshold> <output_dir> <tools_config>\n"
 echo "EXAMPLE (positional arguments = counts => 10):"
 echo "#In case of bam input dir"
 echo "bash ./STRspy_v1.0.sh example/test_dir yes pb example/str_fa example/str_bed NULL region_bed 0.4 output_dir tools_config.txt"
@@ -67,8 +67,10 @@ if [[ "$readtype" == "ont" ]]; then
 	echo -e "Read Type:" "$readtype"
 elif [[ "$readtype" == "pb" ]]; then
 	echo -e "Read Type:" "$readtype"
+elif [[ "$readtype" == "illumina" ]]; then
+	echo -e "Read Type:" "$readtype"
 else
-	echo -e "#Read Type can not be other than ont/pb"
+	echo -e "#Read Type can not be other than ont/pb/illumina"
 	exit;
 fi
 
@@ -238,6 +240,8 @@ if [[ $read_type == "fastq" ]]; then
 			$minimap --MD -L -t 1 -ax map-ont $genome "${fastqfile}" -o $output_dir/GenomeMapping/$fastq_name".minimap.sam"
 		elif [[ "$readtype" == "pb" ]]; then
 			$minimap --MD -L -t 1 -ax map-pb $genome "${fastqfile}" -o $output_dir/GenomeMapping/$fastq_name".minimap.sam"
+		elif [[ "$readtype" == "illumina" ]]; then
+			$minimap --MD -L -t 1 -ax sr $genome "${fastqfile}" -o $output_dir/GenomeMapping/$fastq_name".minimap.sam"
 		else
 			echo -e "#Provided Read type is not known"
 			exit 1;
@@ -310,13 +314,15 @@ if [[ $read_type == "$type" ]]; then
 				$minimap --MD -L -ax map-ont $motif_fasta_dir/"$bed_fname".fa $output_dir/IntersectedRegions/"$bam_name"_"$bed_name".bam.fq -o $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sam
 			elif [[ "$readtype" == "pb" ]]; then
 				$minimap --MD -L -ax map-pb $motif_fasta_dir/"$bed_fname".fa $output_dir/IntersectedRegions/"$bam_name"_"$bed_name".bam.fq -o $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sam
+			elif [[ "$readtype" == "illumina" ]]; then
+				$minimap --MD -L -ax sr $motif_fasta_dir/"$bed_fname".fa $output_dir/IntersectedRegions/"$bam_name"_"$bed_name".bam.fq -o $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sam
 			else
 				echo -e "#Provided Read type is not known"
 				exit 1;
 			fi
 			echo -e "#Done.\n"
 			echo -e "#sam to bam + sort + index..."
-			$samtools view -S -b $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sam -o $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.bam
+			$samtools view -S -bh $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sam -o $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.bam
 			$samtools sort -o $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.bam
 			$samtools index $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam
 			rm -rf $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sam $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.bam
@@ -330,8 +336,10 @@ if [[ $read_type == "$type" ]]; then
 			-p $output_dir/SNVcalls/"$bed_fname"_"$bam_name"
 			echo -e "#Done.\n"
 			echo -e "#Counting Alleles..."
-			$samtools view -q 1 -F 4 $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam | cut -f 3 | sort | uniq -c | sed -e 's/^ *//;s/ /\t/' | \
+			$samtools view -q 1 -F 2308 $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam | cut -f 3 | sort | uniq -c | sed -e 's/^ *//;s/ /\t/' | \
 			grep -v '*' | sort -nr -k1,1 > $output_dir/Countings/"$bed_fname"_"$bam_name"_Allele_freqs.txt
+			# $samtools view -q 1 -F 4 $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam | cut -f 3 | sort | uniq -c | sed -e 's/^ *//;s/ /\t/' | \
+			# grep -v '*' | sort -nr -k1,1 > $output_dir/Countings/"$bed_fname"_"$bam_name"_Allele_freqs.txt
 			echo -e "#Normalize with maximum value of Allele counts.."
 			awk 'FNR==NR{max=($1+0>max)?$1:max;next} {print $2"\t"$1"\t"$1/max}' $output_dir/Countings/"$bed_fname"_"$bam_name"_Allele_freqs.txt \
 			$output_dir/Countings/"$bed_fname"_"$bam_name"_Allele_freqs.txt > temp && mv temp $output_dir/Countings/"$bed_fname"_"$bam_name"_Allele_freqs.txt 
