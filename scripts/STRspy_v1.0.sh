@@ -289,7 +289,7 @@ if [[ "$is_input_bam" == "yes" ]]; then
 fi
 
 # #"==================================================================="
-# ## step2 : mapping to STR.fa + conting + normalization + SNV calling
+# ## step2 : mapping to STR.fa + counting + normalization + SNV calling
 # #"==================================================================="
 
 if [[ $read_type == "$type" ]]; then
@@ -326,17 +326,12 @@ if [[ $read_type == "$type" ]]; then
 			$samtools sort -o $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.bam
 			$samtools index $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam
 			rm -rf $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sam $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.bam
-			echo -e "#Done.\n"
-			## SNV calling by xatlas
-			echo -e "#SNV calling by xatlas...\n"
-			$xatlas \
-			-r $motif_fasta_dir/"$bed_fname".fa \
-			-i $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam \
-			-s $output_dir/SNVcalls/"$bed_fname"_"$bam_name" \
-			-p $output_dir/SNVcalls/"$bed_fname"_"$bam_name"
-			echo -e "#Done.\n"
+			# Filter out duplicate reads
+            samtools markdup -r $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.no_duplicates.sorted.bam
+            samtools index $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.no_duplicates.sorted.bam
+            echo -e "#Done.\n"
 			echo -e "#Counting Alleles..."
-			$samtools view -q 1 -F 2308 $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam | cut -f 3 | sort | uniq -c | sed -e 's/^ *//;s/ /\t/' | \
+			$samtools view -q 1 -F 2308 $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.no_duplicates.sorted.bam | cut -f 3 | sort | uniq -c | sed -e 's/^ *//;s/ /\t/' | \
 			grep -v '*' | sort -nr -k1,1 > $output_dir/Countings/"$bed_fname"_"$bam_name"_Allele_freqs.txt
 			# $samtools view -q 1 -F 4 $output_dir/IntersectMappedReads/"$bed_fname"_"$bam_name"_alignment.sorted.bam | cut -f 3 | sort | uniq -c | sed -e 's/^ *//;s/ /\t/' | \
 			# grep -v '*' | sort -nr -k1,1 > $output_dir/Countings/"$bed_fname"_"$bam_name"_Allele_freqs.txt

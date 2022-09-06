@@ -1,7 +1,7 @@
 #"=========================================Tools global path=========================================================================="
-BEDTOOLS=../bin/bedtools
-MINIMAP=../bin/minimap2
-SAMTOOLS=../bin/samtools
-XATLAS=../xatlas-0.2.1/xatlas
-PARALLEL=../bin/parallel
+BEDTOOLS=/home/OXFORDNANOLABS/hjeffery/miniconda3/envs/strspy_env/bin/bedtools
+MINIMAP=/home/OXFORDNANOLABS/hjeffery/miniconda3/envs/strspy_env/bin/minimap2
+SAMTOOLS=/home/OXFORDNANOLABS/hjeffery/miniconda3/envs/strspy_env/bin/samtools
+XATLAS=/home/OXFORDNANOLABS/hjeffery/miniconda3/envs/strspy_env/bin/xatlas
+PARALLEL=/home/OXFORDNANOLABS/hjeffery/miniconda3/envs/strspy_env/bin/parallel
 
